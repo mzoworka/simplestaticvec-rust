@@ -1,0 +1,1 @@
+# simplestaticvec-rust
