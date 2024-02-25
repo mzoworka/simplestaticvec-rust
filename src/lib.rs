@@ -7,6 +7,8 @@
 use core::mem::MaybeUninit;
 use core::{ptr, slice};
 
+use either::Either;
+
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum StaticVecError {
     CapacityExceeded,
@@ -250,5 +252,67 @@ impl<T, const N: usize> core::ops::Index<usize> for StaticVec<T, N> {
 
     fn index(&self, index: usize) -> &Self::Output {
         core::ops::Index::index(&**self, index)
+    }
+}
+
+pub struct SelectVec<T, const N: usize>(StaticVec<T, N>);
+impl<T, const N: usize> core::future::Future for SelectVec<T, N>
+where
+    T: core::future::Future + core::marker::Unpin,
+{
+    type Output = T::Output;
+
+    fn poll(
+        self: core::pin::Pin<&mut Self>,
+        cx: &mut core::task::Context<'_>,
+    ) -> core::task::Poll<Self::Output> {
+        let self_mut = self.get_mut();
+        for i in 0..self_mut.0.len() {
+            let fut = unsafe { self_mut.0.get_unchecked_mut(i) };
+            let pin = core::pin::pin!(fut);
+            match core::future::Future::poll(pin, cx) {
+                core::task::Poll::Ready(x) => {
+                    self_mut.0.remove(i);
+                    return core::task::Poll::Ready(x);
+                }
+                core::task::Poll::Pending => {}
+            }
+        }
+
+        core::task::Poll::Pending
+    }
+}
+
+pub struct SelectVecAndFut<T, F, const N: usize>(StaticVec<T, N>, F);
+impl<T, F, const N: usize> core::future::Future for SelectVecAndFut<T, F, N>
+where
+    T: core::future::Future + core::marker::Unpin,
+    F: core::future::Future + core::marker::Unpin,
+{
+    type Output = Either<F::Output, T::Output>;
+
+    fn poll(
+        self: core::pin::Pin<&mut Self>,
+        cx: &mut core::task::Context<'_>,
+    ) -> core::task::Poll<Self::Output> {
+        let self_mut = self.get_mut();
+        let pin = core::pin::pin!(&mut self_mut.1);
+        match core::future::Future::poll(pin, cx) {
+            core::task::Poll::Ready(x) => return core::task::Poll::Ready(either::Left(x)),
+            core::task::Poll::Pending => {}
+        };
+        for i in 0..self_mut.0.len() {
+            let fut = unsafe { self_mut.0.get_unchecked_mut(i) };
+            let pin = core::pin::pin!(fut);
+            match core::future::Future::poll(pin, cx) {
+                core::task::Poll::Ready(x) => {
+                    self_mut.0.remove(i);
+                    return core::task::Poll::Ready(either::Right(x));
+                }
+                core::task::Poll::Pending => {}
+            }
+        }
+
+        core::task::Poll::Pending
     }
 }
