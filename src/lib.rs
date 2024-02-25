@@ -255,7 +255,7 @@ impl<T, const N: usize> core::ops::Index<usize> for StaticVec<T, N> {
     }
 }
 
-pub struct SelectVec<'a, T, const N: usize>(&'a mut StaticVec<T, N>);
+pub struct SelectVec<'a, T, const N: usize>(pub &'a mut StaticVec<T, N>);
 impl<'a, T, const N: usize> core::future::Future for SelectVec<'a, T, N>
 where
     T: core::future::Future + core::marker::Unpin,
@@ -283,7 +283,7 @@ where
     }
 }
 
-pub struct SelectVecAndFut<'a, T, F, const N: usize>(&'a mut StaticVec<T, N>, F);
+pub struct SelectVecAndFut<'a, T, F, const N: usize>(pub &'a mut StaticVec<T, N>, pub F);
 impl<'a, T, F, const N: usize> core::future::Future for SelectVecAndFut<'a, T, F, N>
 where
     T: core::future::Future + core::marker::Unpin,
