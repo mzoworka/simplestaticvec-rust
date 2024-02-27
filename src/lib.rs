@@ -85,7 +85,7 @@ impl<T, const N: usize> StaticVec<T, N> {
     pub fn push(&mut self, item: T) -> Result<(), StaticVecError> {
         let old_len = self.len();
         self.resize(old_len + 1)?;
-        self.as_mut_slice()[old_len] = item;
+        self.data[old_len].write(item);
         Ok(())
     }
 
@@ -93,10 +93,7 @@ impl<T, const N: usize> StaticVec<T, N> {
     where
         T: Copy,
     {
-        let old_len = self.len();
-        self.resize(old_len + other.len())?;
-        self.as_mut_slice()[old_len..].copy_from_slice(other);
-        Ok(())
+        self.try_extend_from_iter_ref(other.iter())
     }
 
     pub fn try_extend_from_iter<I: Iterator<Item = T>>(
