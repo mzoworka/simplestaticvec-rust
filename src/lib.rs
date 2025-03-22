@@ -1,6 +1,5 @@
 #![no_std]
 #![allow(incomplete_features)]
-#![feature(maybe_uninit_uninit_array)]
 #![feature(generic_const_exprs)]
 #![feature(generic_arg_infer)]
 
@@ -26,7 +25,7 @@ where
     [(); N]:,
     [(); N - A]:,
 {
-    let mut ary = MaybeUninit::uninit_array();
+    let mut ary = [const { MaybeUninit::uninit() }; N];
     for (idx, val) in a.into_iter().enumerate() {
         ary[idx] = MaybeUninit::new(val);
     }
@@ -39,7 +38,7 @@ impl<T, const N: usize> StaticVec<T, N> {
             return Err(StaticVecError::CapacityExceeded);
         }
         Ok(Self {
-            data: MaybeUninit::uninit_array(),
+            data: [const { MaybeUninit::uninit() }; N],
             len,
         })
     }
@@ -161,7 +160,7 @@ where
 {
     fn clone(&self) -> Self {
         let src = self.as_slice();
-        let mut data = MaybeUninit::uninit_array();
+        let mut data = [const { MaybeUninit::uninit() }; N];
         for i in 0..src.len() {
             data[i] = MaybeUninit::new(src[i].clone());
         }
@@ -198,7 +197,7 @@ impl<T, const N: usize> Default for StaticVec<T, N> {
     fn default() -> Self {
         Self {
             len: 0,
-            data: MaybeUninit::uninit_array(),
+            data: [const { MaybeUninit::uninit() }; N],
         }
     }
 }
