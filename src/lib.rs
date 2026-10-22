@@ -51,22 +51,28 @@ impl<T, const N: usize> StaticVec<T, N> {
     }
 
     pub fn as_slice(&self) -> &[T] {
-        //safe as we ensure that 0..len elements are initialized
-        unsafe { core::mem::transmute::<_, &[T]>(&self.data[..self.len]) }
+        #[allow(unsafe_code)] //sanity: safe as we ensure that 0..len elements are initialized
+        unsafe {
+            core::mem::transmute::<_, &[T]>(&self.data[..self.len])
+        }
     }
 
     pub fn as_mut_slice(&mut self) -> &mut [T] {
-        //safe as we ensure that 0..len elements are initialized
-        unsafe { core::mem::transmute::<_, &mut [T]>(&mut self.data[..self.len]) }
+        #[allow(unsafe_code)] //sanity: safe as we ensure that 0..len elements are initialized
+        unsafe {
+            core::mem::transmute::<_, &mut [T]>(&mut self.data[..self.len])
+        }
     }
 
     pub fn iter(&self) -> slice::Iter<'_, T> {
-        //safe as we ensure that 0..len elements are initialized
-        unsafe { core::mem::transmute::<_, core::slice::Iter<'_, T>>(self.data[..self.len].iter()) }
+        #[allow(unsafe_code)] //sanity: safe as we ensure that 0..len elements are initialized
+        unsafe {
+            core::mem::transmute::<_, core::slice::Iter<'_, T>>(self.data[..self.len].iter())
+        }
     }
 
     pub fn iter_mut(&mut self) -> slice::IterMut<'_, T> {
-        //safe as we ensure that 0..len elements are initialized
+        #[allow(unsafe_code)] //sanity: safe as we ensure that 0..len elements are initialized
         unsafe {
             core::mem::transmute::<_, core::slice::IterMut<'_, T>>(self.data[..self.len].iter_mut())
         }
@@ -101,6 +107,7 @@ impl<T, const N: usize> StaticVec<T, N> {
         for it in iter {
             let last_item = self.len();
             self.resize(last_item + 1)?;
+            #[allow(unsafe_code)] //sanity: last_item is valid index after resize
             unsafe {
                 *self.data.get_unchecked_mut(last_item) = MaybeUninit::new(it);
             }
@@ -124,7 +131,7 @@ impl<T, const N: usize> StaticVec<T, N> {
         [(); N - A]:,
     {
         let mut x: Self = extend_array(value).into();
-        x.resize(A).unwrap();
+        x.len = A;
         x
     }
 
@@ -134,6 +141,7 @@ impl<T, const N: usize> StaticVec<T, N> {
         assert!(len > 0);
         assert!(index < len);
 
+        #[allow(unsafe_code)] //sanity: index and len are checked
         unsafe {
             // infallible
             let ret;
@@ -263,6 +271,7 @@ where
     ) -> core::task::Poll<Self::Output> {
         let self_mut = self.get_mut();
         for i in 0..self_mut.0.len() {
+            #[allow(unsafe_code)] //sanity: i is always in range 0..len
             let fut = unsafe { self_mut.0.get_unchecked_mut(i) };
             let pin = core::pin::pin!(fut);
             match core::future::Future::poll(pin, cx) {
@@ -297,6 +306,7 @@ where
             core::task::Poll::Pending => {}
         };
         for i in 0..self_mut.0.len() {
+            #[allow(unsafe_code)] //sanity: i is always in range 0..len
             let fut = unsafe { self_mut.0.get_unchecked_mut(i) };
             let pin = core::pin::pin!(fut);
             match core::future::Future::poll(pin, cx) {
